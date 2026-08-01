@@ -3,6 +3,8 @@ import socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind(('localhost', 8080))
 
+headers = {}
+
 try:
     server_socket.listen(1)
     print('Server is listening on port 8080...')
@@ -19,9 +21,13 @@ try:
 
     method, path, version = request_line.split()
 
-    print('Method:', method)
-    print('Path:', path)
-    print('Version:', version)
+    headers['Method'] = method
+    headers['Path'] = path
+    headers['Version'] = version
+
+    for line in lines[1:]:
+        header, separator, value = line.partition(": ")
+        headers[header] = value
 
 except Exception as e:
     print("Error:", e)
