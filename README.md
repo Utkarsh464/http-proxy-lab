@@ -133,10 +133,17 @@ nc localhost 8080 < tests/sample_requests/basic-get.txt
 
 ## Example output
 
+Sending `tests/sample_requests/basic-get.txt` to the running server:
+
 ```
 Server is listening on port 8080...
-Connection from: ('127.0.0.1', 54321)
+Connection from: ('127.0.0.1', 43328)
+{'Method': 'GET', 'Path': '/', 'Version': 'HTTP/1.1', 'Host': 'localhost:8080', 'User-Agent': 'curl/8.0', 'Accept': '*/*', 'Connection': 'close', '': ''}
 ```
+
+The final line is the parsed request. The empty `'' : ''` entry comes from
+the empty line after the final `\r\n\r\n` — see
+[docs/learning-notes.md](docs/learning-notes.md).
 
 ## Roadmap
 

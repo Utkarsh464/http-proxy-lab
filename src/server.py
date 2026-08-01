@@ -29,5 +29,7 @@ try:
         header, separator, value = line.partition(": ")
         headers[header] = value
 
+    print(headers)
+
 except Exception as e:
     print("Error:", e)
