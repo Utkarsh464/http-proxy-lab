@@ -110,25 +110,41 @@ the request is found. That is a future milestone.
 
 ## Findings from today
 
-Parsing the headers with the current loop produces one quirk: the empty
-line after the final `\r\n` becomes an empty header entry.
+### The empty-line quirk (partially fixed)
+
+The header loop runs over every line after the request line, including the
+empty line that follows the final `\r\n\r\n`. `''.partition(': ')` returns
+`('', '', '')`, so that empty line becomes a junk header.
 
 ```python
 # for line in lines[1:] includes '' after the final \r\n\r\n
 headers[''] = ''
 ```
 
+I guarded the output with `if header and value:` so the junk entry is no
+longer printed:
+
 ```python
->>> print(headers)
-{'Method': 'GET', 'Path': '/', 'Version': 'HTTP/1.1',
- 'Host': 'localhost:8080', 'User-Agent': 'curl/8.0',
- 'Accept': '*/*', 'Connection': 'close', '': ''}
+for line in lines[1:]:
+    header, separator, value = line.partition(": ")
+    headers[header] = value
+    if header and value:
+        print(f"{header}: {value}")
 ```
 
-`''.partition(': ')` returns `('', '', '')`, so the empty line is stored as
-an empty header. Worth remembering — real HTTP servers explicitly ignore
-lines that don't contain a colon. This is exactly the kind of edge case that
-shows up when you parse HTTP by hand.
+The server output is now clean:
+
+```
+Host: localhost:8080
+User-Agent: curl/8.0
+Accept: */*
+Connection: close
+```
+
+**Worth remembering:** the guard only hides the junk — `headers[header] =
+value` still runs first, so `headers['']` is still stored in the dict. Real
+HTTP servers ignore lines that don't contain a colon *before* storing them.
+Fixing the storage side is a future milestone.
 
 ## Current limitations
 
@@ -136,4 +152,4 @@ shows up when you parse HTTP by hand.
 - `recv(1024)` truncates large requests.
 - No request body parsing.
 - No response handling, no proxy behaviour yet.
-- Empty trailing line becomes a junk header (see above).
+- `headers[''] = ''` is still stored in the dict (the print guard only hides it).

@@ -28,8 +28,8 @@ try:
     for line in lines[1:]:
         header, separator, value = line.partition(": ")
         headers[header] = value
-
-    print(headers)
+        if header and value:
+            print(f"{header}: {value}")
 
 except Exception as e:
-    print("Error:", e)
+    print('Error:', e)
