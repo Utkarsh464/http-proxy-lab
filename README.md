@@ -2,7 +2,7 @@
 
 # HTTP Proxy Lab
 
-**A Python HTTP parser and proxy built completely from scratch using only Python's standard library.**
+**A Python HTTP proxy built completely from scratch to understand networking, sockets, HTTP internals, and web security.**
 
 </div>
 
@@ -42,44 +42,58 @@ what actually happens on the wire:
 
 This repository is my learning journal, written in working code.
 
-## Progress Checklist
+## Current Learning
 
-### Completed
+This project is intentionally being built **feature-by-feature**, without any
+external proxy frameworks or HTTP libraries, so I can deeply understand how
+HTTP works from the socket up. Each milestone is small, understood, and
+committed before the next one starts — the repository only ever contains code
+that actually exists today. The journey is documented in
+[docs/learning-notes.md](docs/learning-notes.md).
 
-- [x] TCP Socket Server
-- [x] Receive Raw HTTP Requests
-- [x] Decode Raw Bytes
+## Current Features
+
+- [x] TCP socket server
+- [x] Raw HTTP request parsing
+- [x] Request line parsing
+- [x] Header parsing
+- [x] HTTP body extraction
+- [x] Request object
+- [x] Modular parser architecture
+
+## Roadmap
+
+- [x] TCP Server
+- [x] Receive Raw Requests
+- [x] Decode Bytes
 - [x] Parse Request Line
-- [x] Parse Generic Headers
+- [x] Parse Headers
+- [x] Parse Request Body
 - [x] Request Object
-
-### Next Up
-
-- [ ] Parse Request Body
-- [ ] Cookie Parser
-- [ ] Response Parser
-- [ ] Logger
+- [ ] Parse Cookies
+- [ ] Parse Query Parameters
+- [ ] Parse Responses
 - [ ] Forward Proxy
+- [ ] Logger
 - [ ] HTTPS CONNECT
-- [ ] Multi-client Support
+- [ ] Multi-threading
 - [ ] HTTP/2
-- [ ] Unit Tests
+- [ ] Request Interception
+- [ ] Response Modification
 
 ## Latest Progress
 
-### v0.2.0 — Modular parser and Request object
+### v0.3.0 — Request body parsing
 
-The single-file `server.py` was split into three focused modules:
+The parser now extracts the HTTP request body. After the headers, an empty
+line (`\r\n`) marks the start of the body; everything after it is collected
+and stored on the `Request` object as `body`.
 
-- `src/server.py` — TCP networking only. It accepts a connection, reads raw
-  bytes, and hands the text to the parser.
-- `src/parser.py` — parsing logic. `parse_request(data)` splits CRLF lines,
-  extracts the request line, and parses generic headers into a dict.
-- `src/request.py` — a `Request` class that holds `method`, `path`, `version`,
-  and `headers` as a single structured object.
-
-The parser no longer returns multiple loose values — it returns one `Request`
-object, which is easier to pass around and extend (body, cookies, etc. later).
+- `src/parser.py` now decodes the raw bytes and splits the request into lines,
+  locating the empty line that separates headers from the body.
+- `src/request.py` now stores a `body` attribute alongside `method`, `path`,
+  `version`, and `headers`.
+- `src/server.py` prints the parsed body to confirm it was received intact.
 
 ## Current capabilities
 
@@ -87,25 +101,28 @@ The current milestone accepts a single connection, receives one raw HTTP
 request, and parses it into a `Request` object:
 
 ```
-GET /hello HTTP/1.1
+POST /login HTTP/1.1
 Host: localhost:8080
-User-Agent: curl/8.0
+Content-Type: application/x-www-form-urlencoded
+
+user=alice&pass=secret
 ```
 
 becomes
 
 ```python
-request.method   # "GET"
-request.path     # "/hello"
+request.method   # "POST"
+request.path     # "/login"
 request.version  # "HTTP/1.1"
-request.headers  # {"Host": "localhost:8080", "User-Agent": "curl/8.0"}
+request.headers  # {"Host": "localhost:8080", "Content-Type": "application/x-www-form-urlencoded"}
+request.body     # "user=alice&pass=secret"
 ```
 
 ## Current limitations
 
 - Handles a single connection, then exits
 - `recv(1024)` only reads the first chunk of data
-- No request body parsing yet
+- Body parsing does not yet honor `Content-Length` or chunked encoding
 - No response handling
 - Not yet a proxy
 
@@ -117,8 +134,9 @@ These limitations are intentional — they are the next milestones.
 http-proxy-lab/
 ├── LICENSE
 ├── README.md
-├── .gitignore
 ├── CHANGELOG.md
+├── .gitignore
+├── pyproject.toml
 ├── src/
 │   ├── server.py
 │   ├── parser.py
@@ -164,29 +182,27 @@ nc localhost 8080 < tests/sample_requests/basic-get.txt
 
 ## Example output
 
-Sending a request to the running server:
+Sending a POST request to the running server:
 
 ```
-Server is listening on port 8080...
-Connection from: ('127.0.0.1', 40768)
-Received data: GET /hello HTTP/1.1
-Host: localhost:8080
-User-Agent: curl/8.0
-Accept: */*
+Proxy server is running on http://localhost:8080
+Connection from ('127.0.0.1', 43338)
+0 'POST /submit HTTP/1.1'
+1 'Host: localhost:8080'
+2 'Content-Length: 15'
+3 ''
+request body
+hello=world
 
-Method: GET
-Path: /hello
-Version: HTTP/1.1
-Headers: {'Host': 'localhost:8080', 'User-Agent': 'curl/8.0', 'Accept': '*/*'}
+Received request: POST /submit HTTP/1.1 {'Host': 'localhost:8080', 'Content-Length': '15'} hello=world
 ```
 
-The parsed request is now a `Request` object whose fields are printed after
-receiving the data.
+The parsed request is now a `Request` object holding the method, path,
+version, headers, and body.
 
-## Roadmap
+## Roadmap details
 
-From raw sockets to a production-quality proxy. See
-[docs/roadmap.md](docs/roadmap.md) for the full plan and
+See [docs/roadmap.md](docs/roadmap.md) for the full journey and
 [docs/learning-notes.md](docs/learning-notes.md) for the learning journal.
 
 ## License

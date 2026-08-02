@@ -1,0 +1,16 @@
+[project]
+name = "http-proxy-lab"
+version = "0.3.0"
+description = "A Python HTTP proxy built completely from scratch to understand networking, sockets, HTTP internals, and web security."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["http", "proxy", "sockets", "networking", "security", "learning"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Software Development :: Libraries",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

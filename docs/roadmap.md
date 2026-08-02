@@ -16,9 +16,11 @@ HTTP Parser
   ↓
 Request Object [done]
   ↓
-Body Parser
+Body Parser [done]
   ↓
 Cookie Parser
+  ↓
+Query Parameter Parser
   ↓
 Logger
   ↓
@@ -47,16 +49,17 @@ Production Ready
 | 4 | Parse request line | [x] | Method, path, version |
 | 5 | Parse generic headers | [x] | Header: value pairs |
 | 6 | Request object | [x] | First-class representation of a request |
-| 7 | Body parser | [ ] | Handle `Content-Length` and chunked bodies |
+| 7 | Body parser | [x] | Extract everything after the blank line |
 | 8 | Cookie parser | [ ] | `Cookie` / `Set-Cookie` handling |
-| 9 | Logger | [ ] | Structured, human-readable request logging |
-| 10 | Forward proxy | [ ] | Relay requests to origin servers |
-| 11 | HTTPS CONNECT | [ ] | Tunnel encrypted traffic |
-| 12 | Thread pool | [ ] | Handle multiple clients concurrently |
-| 13 | Persistent connections | [ ] | Keep-alive support |
-| 14 | HTTP/2 | [ ] | Binary framing, multiplexing |
-| 15 | Unit tests | [ ] | Test the parser against real sample requests |
-| 16 | Production ready | [ ] | Error handling, hardening, packaging |
+| 9 | Query parameter parser | [ ] | Parse `?key=value` pairs from the path |
+| 10 | Logger | [ ] | Structured, human-readable request logging |
+| 11 | Forward proxy | [ ] | Relay requests to origin servers |
+| 12 | HTTPS CONNECT | [ ] | Tunnel encrypted traffic |
+| 13 | Thread pool | [ ] | Handle multiple clients concurrently |
+| 14 | Persistent connections | [ ] | Keep-alive support |
+| 15 | HTTP/2 | [ ] | Binary framing, multiplexing |
+| 16 | Unit tests | [ ] | Test the parser against real sample requests |
+| 17 | Production ready | [ ] | Error handling, hardening, packaging |
 
 ## Guiding rules
 

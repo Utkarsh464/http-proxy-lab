@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## v0.3.0
+
+### Added
+
+- Request body parsing
+- Body attribute inside `Request` object
+- Improved parser architecture
+
+### Changed
+
+- Parser now extracts the request body
+- `Request` object now stores body
+- Cleaner server architecture
+
+---
+
 ## v0.2.0 (Work In Progress)
 
 Added:

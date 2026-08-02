@@ -282,3 +282,111 @@ print('Method:', request.method)   # the instance, lowercase r
 - No response handling, no proxy behaviour yet.
 - Networking and parsing are separated now, but the server still blocks on a
   single `accept()` — multi-client support is a future milestone.
+
+---
+
+## 2026-08-02 — Request body parsing
+
+### What I built
+
+The parser now extracts the HTTP request **body**. A POST request like this:
+
+```
+POST /login HTTP/1.1\r\n
+Host: localhost:8080\r\n
+Content-Type: application/x-www-form-urlencoded\r\n
+\r\n
+user=alice&pass=secret\r\n
+```
+
+now parses into a `Request` object whose `body` is `"user=alice&pass=secret"`.
+
+### How the body is found
+
+```python
+body = ""
+for index, line in enumerate(lines):
+    if line == "":
+        body = "\r\n".join(lines[index + 1:])
+        break
+```
+
+The empty line that ends the headers is the **boundary** between headers and
+body. Everything after it is the body.
+
+### Why HTTP separates headers and body with an empty line
+
+Headers are **metadata** — they describe the request. The body is **content** —
+the actual data being sent. The empty line (`\r\n\r\n` on the wire) gives the
+parser an unambiguous, unambiguous marker: the moment we see a blank line,
+headers are over and the body begins. Without it, a parser would have no way
+to tell where the header block ends. The body is simply *"everything that
+follows the blank line"* — no length guesswork at this milestone.
+
+### `enumerate()`
+
+```python
+for index, line in enumerate(lines):
+```
+
+`enumerate()` turns a list into pairs of `(index, value)`, so I can remember
+*where* I am while I loop. I needed the index to slice the remaining lines
+(`lines[index + 1:]`) once I found the empty line — a plain `for line in lines`
+wouldn't give me the position.
+
+### `repr()`
+
+```python
+print(index, repr(line))
+```
+
+`repr()` shows the string the way Python sees it, including escape characters.
+So a line containing `\r` and `\n` prints as `'Host: localhost:8080'` instead
+of a line break leaking into my terminal output. It makes invisible characters
+visible — very useful when debugging raw network data.
+
+### `join()`
+
+```python
+body = "\r\n".join(lines[index + 1:])
+```
+
+`split()` is the inverse of `join()`. I split on `\r\n` at the start, so I
+rejoin the leftover body lines with `\r\n` to recover the body exactly as it
+arrived on the wire. A body spanning multiple lines stays intact.
+
+### Request object growth
+
+The `Request` class gained a `body` attribute:
+
+```python
+class Request:
+    def __init__(self, method, path, version, headers, body):
+        self.method = method
+        self.path = path
+        self.version = version
+        self.headers = headers
+        self.body = body
+```
+
+This is the payoff of the object-oriented design from the last milestone:
+instead of threading a fifth loose variable through every function, I just add
+one field to the object. The `Request` class now fully represents everything a
+request carries — method, path, version, headers, and body.
+
+### Learned to decode inside the parser
+
+The parser now calls `data.decode('utf-8')` itself, so it accepts raw bytes
+straight from the socket. That keeps the server thin — it only does networking
+(`accept`, `recv`, `close`) and hands bytes straight to the parser.
+
+## Current limitations
+
+- Single connection only — the server accepts once and exits.
+- `recv(1024)` truncates large requests.
+- Body parsing ignores `Content-Length` and chunked encoding — it takes
+  *everything* after the blank line, which is only correct for small bodies
+  that arrive in one chunk.
+- No response handling, no proxy behaviour yet.
+- Networking and parsing are separated now, but the server still blocks on a
+  single `accept()` — multi-client support is a future milestone.
