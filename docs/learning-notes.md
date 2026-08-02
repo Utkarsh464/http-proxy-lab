@@ -390,3 +390,74 @@ straight from the socket. That keeps the server thin — it only does networking
 - No response handling, no proxy behaviour yet.
 - Networking and parsing are separated now, but the server still blocks on a
   single `accept()` — multi-client support is a future milestone.
+
+---
+
+## 2026-08-03 — v1.0: Basic HTTP forward proxy
+
+### What I built
+
+A forward proxy. The loop now does:
+
+1. `accept()` a client.
+2. `receive_http_message(client_socket)` — read the **complete** request
+   (headers plus body, honoring `Content-Length`).
+3. `parse_request()` — turn the bytes into a `Request` object.
+4. `get_target_host_port()` — find the origin from the `Host` header.
+5. `build_request()` — rewrite the request into **origin-form** and strip
+   `Proxy-Connection`.
+6. `forward_request()` — connect to the origin, send it, read the **complete**
+   response (again honoring `Content-Length`).
+7. `parse_response()` — build a `Response` object.
+8. `sendall()` the raw response back to the client.
+
+It's the full request/response round trip. That's the difference between a
+parser and a proxy.
+
+### Learned: TCP streams have no message boundaries
+
+`recv()` returns whatever bytes have arrived — a request can span many
+packets, and one packet can hold part of the next message. That's why
+`Content-Length` exists: it tells the reader *exactly* how many body bytes to
+wait for after the blank line. My `receive_http_message` reads headers until
+`\r\n\r\n`, parses `Content-Length`, then keeps reading until it has that many
+body bytes. Without this, a request split across packets would be truncated.
+
+### Learned: absolute-form vs origin-form
+
+A forward proxy receives requests in **absolute-form**:
+
+```
+GET http://example.com/index.html HTTP/1.1
+```
+
+because the client is telling the *proxy* which origin to fetch. When the
+proxy talks to the origin directly, the request must be **origin-form**:
+
+```
+GET /index.html HTTP/1.1
+```
+
+so `get_path()` strips the `http://host` part before forwarding.
+
+### Learned: the Proxy-Connection header
+
+Some clients add a `Proxy-Connection` header that proxies understand but
+origin servers do not. Forwarding it to the origin is wrong, so
+`build_request()` drops it.
+
+### Learned: a Response object mirrors Request
+
+`parse_response` splits the status line (`version`, `status_code`,
+`reason_phrase`) and headers, then stores the body — the mirror image of
+`parse_request`. The server prints the status line after each forward so I can
+see whether the origin answered.
+
+### Current limitations
+
+- No chunked transfer encoding — `Transfer-Encoding` bodies are not decoded.
+- No HTTPS / CONNECT — `https://` requests can't be tunneled yet.
+- Single-threaded — one client at a time, in a loop.
+- Bodies are decoded as UTF-8, so binary bodies aren't supported.
+- Header lookups are case-sensitive (`Host` must be capitalized).
+- Responses without a `Content-Length` may come back truncated.

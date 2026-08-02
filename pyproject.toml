@@ -1,6 +1,6 @@
 [project]
 name = "http-proxy-lab"
-version = "0.3.0"
+version = "1.0.0"
 description = "A Python HTTP proxy built completely from scratch to understand networking, sockets, HTTP internals, and web security."
 readme = "README.md"
 requires-python = ">=3.10"

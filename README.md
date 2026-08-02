@@ -2,7 +2,7 @@
 
 # HTTP Proxy Lab
 
-**A Python HTTP proxy built completely from scratch to understand networking, sockets, HTTP internals, and web security.**
+**A Python HTTP forward proxy built completely from scratch to understand networking, sockets, HTTP internals, and web security.**
 
 </div>
 
@@ -53,13 +53,15 @@ that actually exists today. The journey is documented in
 
 ## Current Features
 
-- [x] TCP socket server
+- [x] TCP socket server (accept loop, sequential clients)
 - [x] Raw HTTP request parsing
-- [x] Request line parsing
-- [x] Header parsing
-- [x] HTTP body extraction
-- [x] Request object
-- [x] Modular parser architecture
+- [x] Full request reading driven by `Content-Length`
+- [x] Response parsing (`Response` object)
+- [x] Full response reading driven by `Content-Length`
+- [x] Origin-form path rewriting (absolute-form → `/path`)
+- [x] `Proxy-Connection` header stripped before forwarding
+- [x] Request forwarding to the origin server
+- [x] Response relay back to the client
 
 ## Roadmap
 
@@ -70,10 +72,10 @@ that actually exists today. The journey is documented in
 - [x] Parse Headers
 - [x] Parse Request Body
 - [x] Request Object
+- [x] Parse Responses
+- [x] Forward Proxy
 - [ ] Parse Cookies
 - [ ] Parse Query Parameters
-- [ ] Parse Responses
-- [ ] Forward Proxy
 - [ ] Logger
 - [ ] HTTPS CONNECT
 - [ ] Multi-threading
@@ -83,48 +85,51 @@ that actually exists today. The journey is documented in
 
 ## Latest Progress
 
-### v0.3.0 — Request body parsing
+### v1.0 — Basic HTTP forward proxy
 
-The parser now extracts the HTTP request body. After the headers, an empty
-line (`\r\n`) marks the start of the body; everything after it is collected
-and stored on the `Request` object as `body`.
+The project is now a real forward proxy. It accepts a client connection, reads
+the complete request, parses it, rewrites it to origin-form, strips the
+non-standard `Proxy-Connection` header, forwards it to the origin server,
+reads the complete response, and relays it back to the client.
 
-- `src/parser.py` now decodes the raw bytes and splits the request into lines,
-  locating the empty line that separates headers from the body.
-- `src/request.py` now stores a `body` attribute alongside `method`, `path`,
-  `version`, and `headers`.
-- `src/server.py` prints the parsed body to confirm it was received intact.
+- `src/server.py` — the proxy loop: accept → read full request → parse →
+  rewrite → forward → read full response → parse → send back.
+- `src/parser.py` — now parses **both** requests (`parse_request`) and
+  responses (`parse_response`).
+- `src/response.py` — new `Response` object (version, status code, reason
+  phrase, headers, body).
+- `Content-Length` is honored when reading both requests and responses, so
+  bodies split across multiple packets arrive intact.
 
 ## Current capabilities
 
-The current milestone accepts a single connection, receives one raw HTTP
-request, and parses it into a `Request` object:
+A request sent through the proxy:
 
 ```
-POST /login HTTP/1.1
-Host: localhost:8080
-Content-Type: application/x-www-form-urlencoded
-
-user=alice&pass=secret
+curl -x http://localhost:8080 http://example.com/index.html
 ```
 
-becomes
+arrives at the origin server as an origin-form request (no absolute URL, no
+`Proxy-Connection` header):
 
-```python
-request.method   # "POST"
-request.path     # "/login"
-request.version  # "HTTP/1.1"
-request.headers  # {"Host": "localhost:8080", "Content-Type": "application/x-www-form-urlencoded"}
-request.body     # "user=alice&pass=secret"
 ```
+GET /index.html HTTP/1.1
+Host: example.com
+User-Agent: curl/8.0
+```
+
+and the origin's response is relayed back to the client untouched.
 
 ## Current limitations
 
-- Handles a single connection, then exits
-- `recv(1024)` only reads the first chunk of data
-- Body parsing does not yet honor `Content-Length` or chunked encoding
-- No response handling
-- Not yet a proxy
+- No chunked transfer encoding (`Transfer-Encoding` bodies are not decoded)
+- No HTTPS / CONNECT tunneling
+- No streaming
+- No multi-threading — clients are handled one at a time, sequentially
+- No HTTP/2
+- No response modification or interception
+- Body bytes are decoded as UTF-8, so binary bodies are not supported
+- Header lookups are case-sensitive (e.g., `Host` must be capitalized)
 
 These limitations are intentional — they are the next milestones.
 
@@ -140,7 +145,8 @@ http-proxy-lab/
 ├── src/
 │   ├── server.py
 │   ├── parser.py
-│   └── request.py
+│   ├── request.py
+│   └── response.py
 ├── docs/
 │   ├── roadmap.md
 │   └── learning-notes.md
@@ -162,43 +168,45 @@ No dependencies to install. Everything uses the Python standard library.
 
 ## Usage
 
-In one terminal, start the server:
+In one terminal, start the proxy:
 
 ```bash
 python3 src/server.py
 ```
 
-In another terminal, send a request:
+In another terminal, route a request through it:
 
 ```bash
-curl http://localhost:8080/hello -H "User-Agent: curl/8.0"
+curl -x http://localhost:8080 http://example.com/
 ```
 
-or send a raw sample request with netcat:
+or point an environment variable at it:
 
 ```bash
-nc localhost 8080 < tests/sample_requests/basic-get.txt
+HTTP_PROXY=http://localhost:8080 curl http://example.com/
 ```
 
 ## Example output
 
-Sending a POST request to the running server:
-
 ```
 Proxy server is running on http://localhost:8080
-Connection from ('127.0.0.1', 43338)
-0 'POST /submit HTTP/1.1'
-1 'Host: localhost:8080'
-2 'Content-Length: 15'
-3 ''
-request body
-hello=world
-
-Received request: POST /submit HTTP/1.1 {'Host': 'localhost:8080', 'Content-Length': '15'} hello=world
+Accepted connection from ('127.0.0.1', 42134)
+0 'GET http://example.com/ HTTP/1.1'
+1 'Host: example.com'
+2 'User-Agent: curl/8.0'
+3 'Proxy-Connection: Keep-Alive'
+4 ''
+Forwarding request to example.com:80
+0 'HTTP/1.1 200 OK'
+1 'Date: Mon, 03 Aug 2026 12:00:00 GMT'
+2 'Content-Length: 1256'
+3 'Connection: close'
+4 ''
+HTTP/1.1 200 OK
 ```
 
-The parsed request is now a `Request` object holding the method, path,
-version, headers, and body.
+The proxy logs each forwarded request, the origin it reached, and the parsed
+status line of the response.
 
 ## Roadmap details
 

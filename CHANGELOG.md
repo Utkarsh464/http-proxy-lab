@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## v1.0.0
+
+### Added
+
+- Basic HTTP forward proxy: accepts a client, forwards the request to the
+  origin server, and relays the response back
+- Response parsing (`parse_response`) and the `Response` object
+  (`src/response.py`)
+- Full message reading driven by `Content-Length` for both requests and
+  responses
+- Origin-form path rewriting (absolute-form → `/path`)
+- `Proxy-Connection` header stripped before forwarding
+- Sequential multi-client handling via an `accept()` loop
+
+### Changed
+
+- `src/server.py` is now a forward proxy rather than a request parser
+- `src/parser.py` parses both requests and responses
+
+### Fixed
+
+- Request and response bodies split across multiple packets are now read
+  completely via `Content-Length`
+
+### Known limitations (v1.0)
+
+- No chunked transfer encoding
+- No HTTPS / CONNECT tunneling
+- No streaming
+- No multi-threading — clients are handled sequentially
+- No HTTP/2
+
+---
+
 ## v0.3.0
 
 ### Added

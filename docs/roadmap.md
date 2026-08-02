@@ -18,13 +18,15 @@ Request Object [done]
   ↓
 Body Parser [done]
   ↓
+Response Parser [done]
+  ↓
+Forward Proxy [done]
+  ↓
 Cookie Parser
   ↓
 Query Parameter Parser
   ↓
 Logger
-  ↓
-Forward Proxy
   ↓
 HTTPS CONNECT
   ↓
@@ -50,16 +52,17 @@ Production Ready
 | 5 | Parse generic headers | [x] | Header: value pairs |
 | 6 | Request object | [x] | First-class representation of a request |
 | 7 | Body parser | [x] | Extract everything after the blank line |
-| 8 | Cookie parser | [ ] | `Cookie` / `Set-Cookie` handling |
-| 9 | Query parameter parser | [ ] | Parse `?key=value` pairs from the path |
-| 10 | Logger | [ ] | Structured, human-readable request logging |
-| 11 | Forward proxy | [ ] | Relay requests to origin servers |
-| 12 | HTTPS CONNECT | [ ] | Tunnel encrypted traffic |
-| 13 | Thread pool | [ ] | Handle multiple clients concurrently |
-| 14 | Persistent connections | [ ] | Keep-alive support |
-| 15 | HTTP/2 | [ ] | Binary framing, multiplexing |
-| 16 | Unit tests | [ ] | Test the parser against real sample requests |
-| 17 | Production ready | [ ] | Error handling, hardening, packaging |
+| 8 | Response parser | [x] | Status line, headers, body |
+| 9 | Cookie parser | [ ] | `Cookie` / `Set-Cookie` handling |
+| 10 | Query parameter parser | [ ] | Parse `?key=value` pairs from the path |
+| 11 | Logger | [ ] | Structured, human-readable request logging |
+| 12 | Forward proxy | [x] | Relay requests to origin servers |
+| 13 | HTTPS CONNECT | [ ] | Tunnel encrypted traffic |
+| 14 | Thread pool | [ ] | Handle multiple clients concurrently |
+| 15 | Persistent connections | [ ] | Keep-alive support |
+| 16 | HTTP/2 | [ ] | Binary framing, multiplexing |
+| 17 | Unit tests | [ ] | Test the parser against real sample requests |
+| 18 | Production ready | [ ] | Error handling, hardening, packaging |
 
 ## Guiding rules
 
