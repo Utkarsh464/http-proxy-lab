@@ -42,18 +42,49 @@ what actually happens on the wire:
 
 This repository is my learning journal, written in working code.
 
-## Features
+## Progress Checklist
 
-- TCP socket server using only the standard library
-- Receives raw HTTP requests
-- Decodes raw bytes to text
-- Parses the HTTP request line (method, path, version)
-- Parses generic HTTP headers
+### Completed
+
+- [x] TCP Socket Server
+- [x] Receive Raw HTTP Requests
+- [x] Decode Raw Bytes
+- [x] Parse Request Line
+- [x] Parse Generic Headers
+- [x] Request Object
+
+### Next Up
+
+- [ ] Parse Request Body
+- [ ] Cookie Parser
+- [ ] Response Parser
+- [ ] Logger
+- [ ] Forward Proxy
+- [ ] HTTPS CONNECT
+- [ ] Multi-client Support
+- [ ] HTTP/2
+- [ ] Unit Tests
+
+## Latest Progress
+
+### v0.2.0 — Modular parser and Request object
+
+The single-file `server.py` was split into three focused modules:
+
+- `src/server.py` — TCP networking only. It accepts a connection, reads raw
+  bytes, and hands the text to the parser.
+- `src/parser.py` — parsing logic. `parse_request(data)` splits CRLF lines,
+  extracts the request line, and parses generic headers into a dict.
+- `src/request.py` — a `Request` class that holds `method`, `path`, `version`,
+  and `headers` as a single structured object.
+
+The parser no longer returns multiple loose values — it returns one `Request`
+object, which is easier to pass around and extend (body, cookies, etc. later).
 
 ## Current capabilities
 
 The current milestone accepts a single connection, receives one raw HTTP
-request, and parses it into its structural parts:
+request, and parses it into a `Request` object:
 
 ```
 GET /hello HTTP/1.1
@@ -64,13 +95,10 @@ User-Agent: curl/8.0
 becomes
 
 ```python
-{
-    "Method":  "GET",
-    "Path":    "/hello",
-    "Version": "HTTP/1.1",
-    "Host":    "localhost:8080",
-    "User-Agent": "curl/8.0",
-}
+request.method   # "GET"
+request.path     # "/hello"
+request.version  # "HTTP/1.1"
+request.headers  # {"Host": "localhost:8080", "User-Agent": "curl/8.0"}
 ```
 
 ## Current limitations
@@ -90,8 +118,11 @@ http-proxy-lab/
 ├── LICENSE
 ├── README.md
 ├── .gitignore
+├── CHANGELOG.md
 ├── src/
-│   └── server.py
+│   ├── server.py
+│   ├── parser.py
+│   └── request.py
 ├── docs/
 │   ├── roadmap.md
 │   └── learning-notes.md
@@ -133,20 +164,24 @@ nc localhost 8080 < tests/sample_requests/basic-get.txt
 
 ## Example output
 
-Sending `tests/sample_requests/basic-get.txt` to the running server:
+Sending a request to the running server:
 
 ```
 Server is listening on port 8080...
-Connection from: ('127.0.0.1', 37670)
+Connection from: ('127.0.0.1', 40768)
+Received data: GET /hello HTTP/1.1
 Host: localhost:8080
 User-Agent: curl/8.0
 Accept: */*
-Connection: close
+
+Method: GET
+Path: /hello
+Version: HTTP/1.1
+Headers: {'Host': 'localhost:8080', 'User-Agent': 'curl/8.0', 'Accept': '*/*'}
 ```
 
-Each parsed header is printed as it is extracted. The empty line after the
-final `\r\n\r\n` is skipped by the `if header and value:` guard — see
-[docs/learning-notes.md](docs/learning-notes.md).
+The parsed request is now a `Request` object whose fields are printed after
+receiving the data.
 
 ## Roadmap
 

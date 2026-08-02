@@ -14,7 +14,7 @@ TCP
   ↓
 HTTP Parser
   ↓
-Request Object
+Request Object [done]
   ↓
 Body Parser
   ↓
@@ -46,7 +46,7 @@ Production Ready
 | 3 | Decode raw bytes | [x] | `bytes` → `str` (UTF-8) |
 | 4 | Parse request line | [x] | Method, path, version |
 | 5 | Parse generic headers | [x] | Header: value pairs |
-| 6 | Request object | [ ] | First-class representation of a request |
+| 6 | Request object | [x] | First-class representation of a request |
 | 7 | Body parser | [ ] | Handle `Content-Length` and chunked bodies |
 | 8 | Cookie parser | [ ] | `Cookie` / `Set-Cookie` handling |
 | 9 | Logger | [ ] | Structured, human-readable request logging |

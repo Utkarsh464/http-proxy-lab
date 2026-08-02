@@ -153,3 +153,132 @@ Fixing the storage side is a future milestone.
 - No request body parsing.
 - No response handling, no proxy behaviour yet.
 - `headers[''] = ''` is still stored in the dict (the print guard only hides it).
+
+---
+
+## 2026-08-02 — Modular parser and Request object
+
+### What I built
+
+Refactored the single-file `server.py` into three modules:
+
+- `src/server.py` — networking only. Accepts a connection, reads raw bytes,
+  decodes them, and hands the text off to the parser.
+- `src/parser.py` — parsing only. `parse_request(data)` returns one `Request`.
+- `src/request.py` — the `Request` class that stores `method`, `path`,
+  `version`, and `headers`.
+
+### Refactored parser into parser.py
+
+```python
+from request import Request
+
+def parse_request(data):
+    lines = data.split("\r\n")
+    request_line = lines[0]
+    method, path, version = request_line.split()
+    headers = {}
+    for line in lines[1:]:
+        if not line:
+            continue
+        header, separator, value = line.partition(": ")
+        if separator:
+            headers[header] = value
+    return Request(method, path, version, headers)
+```
+
+### Created Request class
+
+```python
+class Request:
+    def __init__(self, method, path, version, headers):
+        self.method = method
+        self.path = path
+        self.version = version
+        self.headers = headers
+```
+
+### Separated networking from parsing
+
+Before, `server.py` did everything inline: receive bytes, split CRLF, parse
+the request line, loop headers — all in one `try` block. Now the server only
+owns the socket work:
+
+```python
+data = conn.recv(1024)
+data = data.decode('utf-8')
+request = parse_request(data)
+```
+
+Parsing is testable in isolation — I can call `parse_request()` with a string
+and never touch a socket. That separation is the whole point of the refactor.
+
+### Parser now returns Request objects
+
+The parser no longer returns multiple loose values or mutates a global
+`headers` dict. It builds one `Request` and returns it:
+
+```python
+request.method   # "GET"
+request.path     # "/hello"
+request.version  # "HTTP/1.1"
+request.headers  # {"Host": "localhost:8080", ...}
+```
+
+### Learned object-oriented design
+
+The `Request` class is my first OOP step in this project. The idea: instead
+of juggling `method`, `path`, `version`, and `headers` as four separate
+variables, bundle them into one object that travels together. Down the road
+this object can grow a `body`, `cookies`, or helper methods without callers
+changing.
+
+### Learned why Method/Path/Version are NOT HTTP headers
+
+This tripped me up at first. The request line and the headers both arrive in
+the same raw text, so why keep them separate?
+
+- The request line is `METHOD SP path SP HTTP-version` — it has a **fixed
+  structure** (three space-separated parts).
+- Headers are `name: value` pairs — a **variable set** of arbitrary lines,
+  each with a colon separator.
+
+The parser treats them differently for that reason: the request line is
+unpacked positionally (`method, path, version = request_line.split()`), while
+headers are discovered line by line with `partition(": ")`. Even though I
+initially stored Method/Path/Version *inside* the headers dict, they are
+semantically different — a header needs a colon, the request line does not.
+
+### The empty-line quirk is now actually fixed
+
+The old code guarded the *printing* of the junk empty header but still stored
+`headers[''] = ''`. The new parser skips empty lines entirely:
+
+```python
+for line in lines[1:]:
+    if not line:
+        continue
+```
+
+So the junk entry is gone from the dict itself, not just hidden.
+
+### One runtime bug I hit and fixed
+
+I initially wrote `print('Method:', Request.method)` — capital `R`, the
+class. Python raised `type object 'Request' has no attribute 'method'`. The
+class is a blueprint; the parsed values live on the *instance* created by
+`parse_request()`. The correct code reads from the instance:
+
+```python
+request = parse_request(data)
+print('Method:', request.method)   # the instance, lowercase r
+```
+
+## Current limitations
+
+- Single connection only — the server accepts once and exits.
+- `recv(1024)` truncates large requests.
+- No request body parsing.
+- No response handling, no proxy behaviour yet.
+- Networking and parsing are separated now, but the server still blocks on a
+  single `accept()` — multi-client support is a future milestone.
